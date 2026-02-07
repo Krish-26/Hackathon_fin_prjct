@@ -827,7 +827,7 @@ def render_savings(data: dict) -> None:
 
 
 
-def render_csv_analysis(data: dict) -> None:
+def render_csv_analysis() -> None:
   
     #This does NOT persist data; it only analyzes the uploaded file.
 
@@ -952,6 +952,56 @@ def render_csv_analysis(data: dict) -> None:
 
 
 
+def render_previous_months(data: dict) -> None:
+    #Render the Previous Months Data tab with archives and summaries
+    st.subheader("Previous Months Data – Calm Retrospective")
+
+    archives = data.get("archives", {})
+    if not archives:
+        st.info("No previous month data archived yet. As months pass, summaries will appear here.")
+        return
+
+    # Sort month keys descending so latest appears first
+    months = sorted(archives.keys(), reverse=True)
+    # Show readable labels like "2025-12 (December 2025)"
+    def pretty_label(month_key: str) -> str:
+        year, month = month_key.split("-")
+        month_name = calendar.month_name[int(month)]
+        return f"{month_key} ({month_name} {year})"
+
+    label_map = {pretty_label(m): m for m in months}
+    selected_label = st.selectbox("Choose a month to explore", options=list(label_map.keys()))
+    selected_key = label_map[selected_label]
+
+    month_data = archives[selected_key]
+    df = transactions_to_dataframe(month_data.get("transactions", []))
+    basic_metrics = compute_basic_metrics(df, month_data.get("monthly_allowance", 0.0))
+
+    # Summary metrics
+    st.markdown(f"### Summary for {selected_label}")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Monthly Allowance (for that month)", f"{month_data.get('monthly_allowance', 0.0):,.2f}")
+    with c2:
+        st.metric("Total Spent (Expenses)", f"{basic_metrics['total_expense']:,.2f}")
+    with c3:
+        st.metric("Net Remaining at Month End (Approx.)", f"{basic_metrics['remaining_budget']:,.2f}")
+
+    # Transactions table
+    st.markdown("### Transactions for Selected Month")
+    if df.empty:
+        st.info("No transactions were recorded for this month.")
+    else:
+        df_display = df.copy()
+        df_display["date"] = df_display["date"].dt.date
+        st.dataframe(df_display, use_container_width=True)
+
+
+
+
+
+
+
 
 
 def main():
@@ -989,9 +1039,9 @@ def main():
     elif page == "Savings":
         render_savings(data)
     elif page == "CSV Analysis":
-        render_csv_analysis(data)
+        render_csv_analysis()
     elif page == "Previous Months Data":
-        pass
+        render_previous_months(data)
     elif page == "To Take & To Give":
         pass
     elif page == "About":
