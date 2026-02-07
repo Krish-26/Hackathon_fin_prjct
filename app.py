@@ -1003,6 +1003,244 @@ def render_previous_months(data: dict) -> None:
 
 
 
+def render_to_take_to_give(data: dict) -> None:
+
+    #This is purely for mental records and does NOT affect any financial calculations.
+
+    st.subheader("To Take & To Give – Mental Records")
+    
+    st.write(
+        "Keep track of money friends owe you and money you owe friends. "
+        "This is just for your personal records and doesn't affect your budget calculations."
+    )
+    
+    to_take = data.get("to_take", [])  # Money owed to you
+    to_give = data.get("to_give", [])  # Money you owe
+    
+    # Calculate totals for quick overview
+    total_to_take = sum(entry.get("amount", 0.0) for entry in to_take)
+    total_to_give = sum(entry.get("amount", 0.0) for entry in to_give)
+    
+    # Summary metrics
+    st.markdown("### Quick Overview")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Total Money to Take", f"{total_to_take:,.2f}")
+    with col2:
+        st.metric("Total Money to Give", f"{total_to_give:,.2f}")
+    
+    # Money to Take Section (Friends owe you)
+    st.markdown("---")
+    st.markdown("### 💰 Money to Take (Friends Owe You)")
+    
+    # Add new entry form
+    with st.expander("➕ Add New Entry - Money to Take", expanded=False):
+        with st.form("add_to_take_form", clear_on_submit=True):
+            person_name = st.text_input("Person Name", placeholder="Friend's name")
+            amount = st.number_input("Amount", min_value=0.0, step=10.0, format="%.2f")
+            description = st.text_area("Description/Notes", placeholder="What was this for? (optional)")
+            entry_date = st.date_input("Date", value=date.today())
+            
+            submitted = st.form_submit_button("Add Entry")
+            if submitted:
+                if not person_name.strip():
+                    st.warning("Please enter a person's name.")
+                elif amount <= 0:
+                    st.warning("Please enter an amount greater than zero.")
+                else:
+                    new_id = str(len(to_take) + len(to_give) + 1) + "-" + str(int(datetime.now().timestamp()))
+                    new_entry = {
+                        "id": new_id,
+                        "person": person_name.strip(),
+                        "amount": float(amount),
+                        "description": description.strip() if description else "",
+                        "date": entry_date.isoformat(),
+                    }
+                    to_take.append(new_entry)
+                    data["to_take"] = to_take
+                    save_data(data)
+                    st.success(f"Entry added for {person_name}. Your records are updated.")
+                    st.rerun()
+    
+    # Display and manage entries
+    if not to_take:
+        st.info("No entries yet. Add entries above to track money friends owe you.")
+    else:
+        for idx, entry in enumerate(to_take):
+            entry_id = entry.get("id", str(idx))
+            person = entry.get("person", "Unknown")
+            amount = entry.get("amount", 0.0)
+            description = entry.get("description", "")
+            entry_date_str = entry.get("date", date.today().isoformat())
+            
+            try:
+                entry_date_obj = datetime.fromisoformat(entry_date_str).date()
+            except (ValueError, TypeError):
+                entry_date_obj = date.today()
+            
+            with st.container():
+                col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+                with col1:
+                    st.write(f"**{person}**")
+                    if description:
+                        st.caption(description)
+                    st.caption(f"Date: {entry_date_obj.strftime('%Y-%m-%d')}")
+                with col2:
+                    st.metric("Amount", f"{amount:,.2f}")
+                with col3:
+                    # Edit button
+                    edit_key = f"edit_take_{entry_id}"
+                    if st.button("✏️ Edit", key=edit_key):
+                        st.session_state[f"editing_take_{entry_id}"] = True
+                
+                with col4:
+                    # Delete button
+                    if st.button("🗑️ Delete", key=f"delete_take_{entry_id}"):
+                        data["to_take"] = [e for e in to_take if e.get("id") != entry_id]
+                        save_data(data)
+                        st.success(f"Entry for {person} deleted.")
+                        st.rerun()
+                
+                # Edit form (shown when edit button is clicked)
+                if st.session_state.get(f"editing_take_{entry_id}", False):
+                    with st.form(f"edit_take_form_{entry_id}", clear_on_submit=False):
+                        new_person = st.text_input("Person Name", value=person, key=f"person_take_{entry_id}")
+                        new_amount = st.number_input("Amount", min_value=0.0, value=float(amount), step=10.0, format="%.2f", key=f"amount_take_{entry_id}")
+                        new_description = st.text_area("Description/Notes", value=description, key=f"desc_take_{entry_id}")
+                        new_date = st.date_input("Date", value=entry_date_obj, key=f"date_take_{entry_id}")
+                        
+                        col_save, col_cancel = st.columns(2)
+                        with col_save:
+                            if st.form_submit_button("💾 Save Changes"):
+                                entry["person"] = new_person.strip()
+                                entry["amount"] = float(new_amount)
+                                entry["description"] = new_description.strip()
+                                entry["date"] = new_date.isoformat()
+                                data["to_take"] = to_take
+                                save_data(data)
+                                st.session_state[f"editing_take_{entry_id}"] = False
+                                st.success("Entry updated successfully.")
+                                st.rerun()
+                        with col_cancel:
+                            if st.form_submit_button("❌ Cancel"):
+                                st.session_state[f"editing_take_{entry_id}"] = False
+                                st.rerun()
+                
+                st.divider()
+    
+    #Money to Give Section (You owe friends)
+    st.markdown("---")
+    st.markdown("### 📤 Money to Give (You Owe Friends)")
+    
+    # Add new entry form
+    with st.expander("➕ Add New Entry - Money to Give", expanded=False):
+        with st.form("add_to_give_form", clear_on_submit=True):
+            person_name = st.text_input("Person Name", placeholder="Friend's name", key="give_person")
+            amount = st.number_input("Amount", min_value=0.0, step=10.0, format="%.2f", key="give_amount")
+            description = st.text_area("Description/Notes", placeholder="What was this for? (optional)", key="give_desc")
+            entry_date = st.date_input("Date", value=date.today(), key="give_date")
+            
+            submitted = st.form_submit_button("Add Entry")
+            if submitted:
+                if not person_name.strip():
+                    st.warning("Please enter a person's name.")
+                elif amount <= 0:
+                    st.warning("Please enter an amount greater than zero.")
+                else:
+                    new_id = str(len(to_take) + len(to_give) + 1) + "-" + str(int(datetime.now().timestamp()))
+                    new_entry = {
+                        "id": new_id,
+                        "person": person_name.strip(),
+                        "amount": float(amount),
+                        "description": description.strip() if description else "",
+                        "date": entry_date.isoformat(),
+                    }
+                    to_give.append(new_entry)
+                    data["to_give"] = to_give
+                    save_data(data)
+                    st.success(f"Entry added for {person_name}. Your records are updated.")
+                    st.rerun()
+    
+    # Display and manage entries
+    if not to_give:
+        st.info("No entries yet. Add entries above to track money you owe friends.")
+    else:
+        for idx, entry in enumerate(to_give):
+            entry_id = entry.get("id", str(idx))
+            person = entry.get("person", "Unknown")
+            amount = entry.get("amount", 0.0)
+            description = entry.get("description", "")
+            entry_date_str = entry.get("date", date.today().isoformat())
+            
+            try:
+                entry_date_obj = datetime.fromisoformat(entry_date_str).date()
+            except (ValueError, TypeError):
+                entry_date_obj = date.today()
+            
+            with st.container():
+                col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+                with col1:
+                    st.write(f"**{person}**")
+                    if description:
+                        st.caption(description)
+                    st.caption(f"Date: {entry_date_obj.strftime('%Y-%m-%d')}")
+                with col2:
+                    st.metric("Amount", f"{amount:,.2f}")
+                with col3:
+                    # Edit button
+                    edit_key = f"edit_give_{entry_id}"
+                    if st.button("✏️ Edit", key=edit_key):
+                        st.session_state[f"editing_give_{entry_id}"] = True
+                
+                with col4:
+                    # Delete button
+                    if st.button("🗑️ Delete", key=f"delete_give_{entry_id}"):
+                        data["to_give"] = [e for e in to_give if e.get("id") != entry_id]
+                        save_data(data)
+                        st.success(f"Entry for {person} deleted.")
+                        st.rerun()
+                
+                # Edit form (shown when edit button is clicked)
+                if st.session_state.get(f"editing_give_{entry_id}", False):
+                    with st.form(f"edit_give_form_{entry_id}", clear_on_submit=False):
+                        new_person = st.text_input("Person Name", value=person, key=f"person_give_{entry_id}")
+                        new_amount = st.number_input("Amount", min_value=0.0, value=float(amount), step=10.0, format="%.2f", key=f"amount_give_{entry_id}")
+                        new_description = st.text_area("Description/Notes", value=description, key=f"desc_give_{entry_id}")
+                        new_date = st.date_input("Date", value=entry_date_obj, key=f"date_give_{entry_id}")
+                        
+                        col_save, col_cancel = st.columns(2)
+                        with col_save:
+                            if st.form_submit_button("💾 Save Changes"):
+                                entry["person"] = new_person.strip()
+                                entry["amount"] = float(new_amount)
+                                entry["description"] = new_description.strip()
+                                entry["date"] = new_date.isoformat()
+                                data["to_give"] = to_give
+                                save_data(data)
+                                st.session_state[f"editing_give_{entry_id}"] = False
+                                st.success("Entry updated successfully.")
+                                st.rerun()
+                        with col_cancel:
+                            if st.form_submit_button("❌ Cancel"):
+                                st.session_state[f"editing_give_{entry_id}"] = False
+                                st.rerun()
+                
+                st.divider()
+    
+    # Note at the bottom
+    st.info(
+        "💡 **Note**: These records are for your personal reference only. "
+        "They do not affect your budget calculations, spending analysis, or savings goals."
+    )
+
+
+
+
+
+
+
+
+
 
 def main():
     
@@ -1043,7 +1281,7 @@ def main():
     elif page == "Previous Months Data":
         render_previous_months(data)
     elif page == "To Take & To Give":
-        pass
+        render_to_take_to_give(data)
     elif page == "About":
         pass
 
