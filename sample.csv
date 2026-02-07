@@ -1,0 +1,21 @@
+date,category,income_or_expenditure,payment_mode,amount
+2026-02-01,Allowance,Income,Bank Transfer,8000
+2026-02-01,Food,Expenditure,UPI,120
+2026-02-02,Transport,Expenditure,UPI,60
+2026-02-02,Coffee,Expenditure,Cash,90
+2026-02-03,Groceries,Expenditure,Card,450
+2026-02-04,Entertainment,Expenditure,UPI,300
+2026-02-05,Food,Expenditure,UPI,180
+2026-02-06,Books,Expenditure,Card,650
+2026-02-07,Snacks,Expenditure,Cash,70
+2026-02-08,Transport,Expenditure,UPI,60
+2026-02-10,Freelance,Income,UPI,1200
+2026-02-11,Food,Expenditure,UPI,210
+2026-02-12,Subscriptions,Expenditure,Card,199
+2026-02-14,Entertainment,Expenditure,UPI,500
+2026-02-16,Groceries,Expenditure,Card,380
+2026-02-18,Food,Expenditure,UPI,160
+2026-02-20,Transport,Expenditure,UPI,60
+2026-02-22,Snacks,Expenditure,Cash,50
+2026-02-24,Food,Expenditure,UPI,190
+2026-02-26,Personal,Expenditure,UPI,300

@@ -1,0 +1,117 @@
+{
+  "current_month": "2026-02",
+  "monthly_allowance": 5000.0,
+  "categories": [
+    "Food",
+    "Transport",
+    "Rent",
+    "Groceries",
+    "Entertainment",
+    "Academic",
+    "Health",
+    "Savings",
+    "Freelance"
+  ],
+  "transactions": [
+    {
+      "date": "2026-02-08",
+      "category": "Food",
+      "income_or_expenditure": "Expenditure",
+      "payment_mode": "UPI / Wallet",
+      "amount": 568.0
+    },
+    {
+      "date": "2026-02-08",
+      "category": "Academic",
+      "income_or_expenditure": "Expenditure",
+      "payment_mode": "UPI / Wallet",
+      "amount": 785.0
+    },
+    {
+      "date": "2026-02-08",
+      "category": "Freelance",
+      "income_or_expenditure": "Income",
+      "payment_mode": "UPI / Wallet",
+      "amount": 1000.0
+    },
+    {
+      "date": "2026-02-08",
+      "category": "Transport",
+      "income_or_expenditure": "Expenditure",
+      "payment_mode": "Cash",
+      "amount": 280.0
+    }
+  ],
+  "archives": {
+    "2024-10": {
+      "monthly_allowance": 5000.0,
+      "transactions": [
+        {
+          "date": "2024-10-05",
+          "category": "Rent",
+          "income_or_expenditure": "Expenditure",
+          "payment_mode": "Bank Transfer",
+          "amount": 2000.0
+        },
+        {
+          "date": "2024-10-15",
+          "category": "Entertainment",
+          "income_or_expenditure": "Expenditure",
+          "payment_mode": "Cash",
+          "amount": 500.0
+        },
+        {
+          "date": "2024-10-20",
+          "category": "Food",
+          "income_or_expenditure": "Expenditure",
+          "payment_mode": "UPI",
+          "amount": 300.0
+        }
+      ]
+    },
+    "2024-11": {
+      "monthly_allowance": 5000.0,
+      "transactions": [
+        {
+          "date": "2024-11-02",
+          "category": "Rent",
+          "income_or_expenditure": "Expenditure",
+          "payment_mode": "Bank Transfer",
+          "amount": 2000.0
+        },
+        {
+          "date": "2024-11-05",
+          "category": "Food",
+          "income_or_expenditure": "Expenditure",
+          "payment_mode": "UPI",
+          "amount": 150.0
+        },
+        {
+          "date": "2024-11-07",
+          "category": "Groceries",
+          "income_or_expenditure": "Expenditure",
+          "payment_mode": "Card",
+          "amount": 400.0
+        },
+        {
+          "date": "2024-11-10",
+          "category": "Freelance",
+          "income_or_expenditure": "Income",
+          "payment_mode": "UPI",
+          "amount": 1200.0
+        }
+      ]
+    }
+  },
+  "savings_goals": [
+    {
+      "id": "1-1770499695",
+      "name": "Travel",
+      "target_amount": 200.0,
+      "target_date": "2026-02-28",
+      "created_date": "2026-02-08"
+    }
+  ],
+  "to_take": [],
+  "to_give": []
+}
