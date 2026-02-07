@@ -102,6 +102,59 @@ def rollover_month_if_needed(data: dict) -> dict:
     return data
 
 
+def compute_basic_metrics(df: pd.DataFrame, monthly_allowance: float) -> dict:
+#totals and derived metrics for dashboard
+    if df.empty:
+        transaction_income = 0.0
+        total_expense = 0.0
+    else:
+        transaction_income = df.loc[df["income_or_expenditure"] == "Income", "amount"].sum()
+        total_expense = df.loc[df["income_or_expenditure"] == "Expenditure", "amount"].sum()
+
+    # Monthly allowance is considered as income
+    total_income = monthly_allowance + transaction_income
+    
+    # Remaining budget = total income (allowance + transactions) - expenses
+    net_available = total_income - total_expense
+
+    return {
+        "total_income": float(total_income),  # Includes monthly allowance
+        "total_expense": float(total_expense),
+        "net_available": float(net_available),
+        "remaining_budget": float(max(net_available, 0.0)),  # Do not show negative as remaining
+    }
+
+
+def transactions_to_dataframe(transactions: list) -> pd.DataFrame:
+#Convert list to dataframe
+    if not transactions:
+        return pd.DataFrame(columns=["date", "category", "income_or_expenditure", "payment_mode", "amount"])
+
+    df = pd.DataFrame(transactions)
+    # Parse date to datetime for grouping and sorting
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df["amount"] = pd.to_numeric(df["amount"], errors="coerce").fillna(0.0)
+    return df
+
+
+
+
+
+
+
+
+
+
+
+def render_dashboard(data: dict) -> None:
+    pass
+
+
+
+
+
+
+
 def main():
     
     
@@ -131,7 +184,7 @@ def main():
 
     # Route to appropriate page
     if page == "Dashboard":
-        pass
+        render_dashboard(data)
     elif page == "Insights":
         pass
     elif page == "Savings":
