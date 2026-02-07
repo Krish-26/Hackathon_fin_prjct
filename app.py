@@ -147,7 +147,239 @@ def transactions_to_dataframe(transactions: list) -> pd.DataFrame:
 
 
 def render_dashboard(data: dict) -> None:
-    pass
+    #main dashboard
+    st.subheader("Dashboard - Current Month Overview")
+
+    # Allowance settings
+    with st.expander("Monthly Allowance Settings", expanded=True):
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            st.write(
+                "Set your planned monthly allowance. "
+                "This is the amount you aim to manage calmly over the month."
+            )
+        with col2:
+            new_allowance = st.number_input(
+                "Monthly Allowance",
+                min_value=0.0,
+                value=float(data.get("monthly_allowance", 0.0)),
+                step=100.0,
+            )
+        if st.button("Save Allowance"):
+            data["monthly_allowance"] = float(new_allowance)
+            save_data(data)
+            st.success("Monthly allowance saved. You can adjust this anytime.")
+
+    # Convert current transactions to DataFrame
+    df = transactions_to_dataframe(data.get("transactions", []))
+    basic_metrics = compute_basic_metrics(df, data.get("monthly_allowance", 0.0))
+
+    #Key metrics
+    st.markdown("### Key Monthly Numbers")
+    m1, m2, m3 = st.columns(3)
+    with m1:
+        st.metric("Monthly Allowance", f"{data.get('monthly_allowance', 0.0):,.2f}")
+    with m2:
+        st.metric("Total Spent (Expenses)", f"{basic_metrics['total_expense']:,.2f}")
+    with m3:
+        st.metric("Remaining Budget (Approx.)", f"{basic_metrics['remaining_budget']:,.2f}")
+
+    #Transaction input form
+    st.markdown("### Add a Transaction")
+    with st.form("add_transaction_form", clear_on_submit=True):
+        c1, c2 = st.columns(2)
+        with c1:
+            tx_date = st.date_input("Date", value=date.today())
+            income_or_exp = st.selectbox(
+                "Type",
+                options=["Expenditure", "Income"],
+                help="Choose whether this is money going out (Expenditure) or coming in (Income).",
+            )
+            payment_mode = st.selectbox(
+                "Payment Mode",
+                options=["Cash", "Card", "UPI / Wallet", "Bank Transfer", "Other"],
+            )
+        with c2:
+            # Category selection from persisted categories
+            if not data.get("categories"):
+                st.info("No categories yet. Please add a category below first.")
+                category = None
+            else:
+                category = st.selectbox("Category", options=data["categories"])
+
+            amount = st.number_input(
+                "Amount",
+                min_value=0.0,
+                step=10.0,
+                format="%.2f",
+            )
+
+        submitted = st.form_submit_button("Add Transaction")
+        if submitted:
+            if category is None:
+                st.warning("Please add at least one category before logging a transaction.")
+            elif amount <= 0:
+                st.warning("Please enter an amount greater than zero.")
+            else:
+                new_tx = {
+                    "date": tx_date.isoformat(),
+                    "category": category,
+                    "income_or_expenditure": income_or_exp,
+                    "payment_mode": payment_mode,
+                    "amount": float(amount),
+                }
+                data.setdefault("transactions", []).append(new_tx)
+                save_data(data)
+                st.success("Transaction added. You're keeping a clear, calm record.")
+
+    #Category management
+    st.markdown("### Manage Categories")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.write("Add a category that matches your real student life.")
+        new_cat = st.text_input("New Category Name")
+        if st.button("Add Category"):
+            cleaned = new_cat.strip()
+            if not cleaned:
+                st.warning("Please enter a non-empty category name.")
+            elif cleaned in data["categories"]:
+                st.info("This category already exists.")
+            else:
+                data["categories"].append(cleaned)
+                save_data(data)
+                st.success("Category added and saved for future use.")
+
+    with c2:
+        st.write("Remove categories you no longer use (optional).")
+        if data.get("categories"):
+            cats_to_delete = st.multiselect(
+                "Select Categories to Remove",
+                options=data["categories"],
+            )
+            if st.button("Delete Selected Categories"):
+                data["categories"] = [c for c in data["categories"] if c not in cats_to_delete]
+                save_data(data)
+                st.success("Selected categories removed. Past transactions remain unchanged.")
+        else:
+            st.info("No categories defined yet.")
+
+    #Transactions table with filters and sorting
+    st.markdown("### Transactions This Month")
+    if df.empty:
+        st.info("No transactions for this month yet. Adding even a few entries gives you helpful insight.")
+        return
+
+    # Filters
+    f1, f2 = st.columns(2)
+    with f1:
+        type_filter = st.selectbox(
+            "Show",
+            options=["All", "Income only", "Expenditure only"],
+        )
+    with f2:
+        sort_option = st.selectbox(
+            "Sort by Amount",
+            options=["None", "Amount Ascending", "Amount Descending"],
+        )
+
+    # Apply type filter
+    if type_filter == "Income only":
+        df_filtered = df[df["income_or_expenditure"] == "Income"].copy()
+    elif type_filter == "Expenditure only":
+        df_filtered = df[df["income_or_expenditure"] == "Expenditure"].copy()
+    else:
+        df_filtered = df.copy()
+
+    # Apply sorting
+    if sort_option == "Amount Ascending":
+        df_filtered = df_filtered.sort_values("amount", ascending=True)
+    elif sort_option == "Amount Descending":
+        df_filtered = df_filtered.sort_values("amount", ascending=False)
+    else:
+        df_filtered = df_filtered.sort_values("date", ascending=True)
+
+    # Format date for display
+    df_filtered["date"] = df_filtered["date"].dt.date
+
+    st.dataframe(df_filtered, use_container_width=True)
+
+    # Delete transactions section
+    st.markdown("### Delete Transactions")
+    st.write("Select transactions to remove from your records.")
+    
+    # Create a list of transaction labels for selection
+    # We'll use the original df (before filtering) to show all transactions
+    df_original = transactions_to_dataframe(data.get("transactions", []))
+    if not df_original.empty:
+        # Create readable labels for each transaction
+        transaction_labels = []
+        transaction_indices = []
+        
+        for idx, row in df_original.iterrows():
+            date_str = pd.to_datetime(row["date"]).strftime("%Y-%m-%d")
+            label = f"{date_str} | {row['category']} | {row['income_or_expenditure']} | {row['amount']:.2f}"
+            transaction_labels.append(label)
+            transaction_indices.append(idx)
+        
+        # Multiselect for choosing transactions to delete
+        transactions_to_delete = st.multiselect(
+            "Select transactions to delete",
+            options=transaction_labels,
+            help="Choose one or more transactions to remove. This action cannot be undone.",
+        )
+        
+        if transactions_to_delete:
+            if st.button("🗑️ Delete Selected Transactions", type="primary"):
+                # Find indices of selected transactions
+                selected_indices = [transaction_indices[i] for i, label in enumerate(transaction_labels) if label in transactions_to_delete]
+                
+                # Remove transactions from the original list
+                # We need to match by the transaction dict, not by DataFrame index
+                transactions_list = data.get("transactions", [])
+                
+                # Convert selected DataFrame rows back to dicts for matching
+                selected_transactions = []
+                for idx in selected_indices:
+                    row = df_original.iloc[idx]
+                    # Reconstruct transaction dict matching the stored format
+                    tx_dict = {
+                        "date": pd.to_datetime(row["date"]).strftime("%Y-%m-%d"),
+                        "category": row["category"],
+                        "income_or_expenditure": row["income_or_expenditure"],
+                        "payment_mode": row["payment_mode"],
+                        "amount": float(row["amount"]),
+                    }
+                    selected_transactions.append(tx_dict)
+                
+                # Remove matching transactions from the list
+                # Use a matching function that compares all fields
+                def transactions_match(tx1, tx2):
+                    """Check if two transaction dicts match."""
+                    return (
+                        tx1.get("date") == tx2.get("date")
+                        and tx1.get("category") == tx2.get("category")
+                        and tx1.get("income_or_expenditure") == tx2.get("income_or_expenditure")
+                        and tx1.get("payment_mode") == tx2.get("payment_mode")
+                        and abs(tx1.get("amount", 0) - tx2.get("amount", 0)) < 0.01  # Float comparison
+                    )
+                
+                # Filter out matching transactions
+                original_count = len(transactions_list)
+                transactions_list = [
+                    tx for tx in transactions_list
+                    if not any(transactions_match(tx, selected_tx) for selected_tx in selected_transactions)
+                ]
+                deleted_count = original_count - len(transactions_list)
+                
+                # Update data and save
+                data["transactions"] = transactions_list
+                save_data(data)
+                st.success(f"Successfully deleted {deleted_count} transaction(s). Your records have been updated.")
+                st.rerun()  # Refresh to show updated table
+
+
+
+
 
 
 
