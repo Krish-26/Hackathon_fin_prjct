@@ -516,8 +516,6 @@ def render_dashboard(data: dict) -> None:
 
 
 
-
-
 def render_insights(data: dict) -> None:
     """Render the Insights tab with analytics, charts, and financial tips."""
     st.subheader("Insights – Gentle View of Your Habits")
@@ -628,6 +626,210 @@ def render_insights(data: dict) -> None:
 
 
 
+
+
+
+def render_savings(data: dict) -> None:
+   #Render the Savings tab with goal tracking and progress visualization
+    st.subheader("Monthly Savings Goals – Your Path to Financial Growth")
+    
+    st.write(
+        "Set savings goals and track your progress calmly. "
+        "Every small step toward your goals is meaningful."
+    )
+    
+    # Calculate current savings from transactions
+    # Monthly allowance is treated as income
+    df = transactions_to_dataframe(data.get("transactions", []))
+    monthly_allowance = data.get("monthly_allowance", 0.0)
+    
+    if df.empty:
+        transaction_income = 0.0
+        total_expense = 0.0
+    else:
+        transaction_income = df.loc[df["income_or_expenditure"] == "Income", "amount"].sum()
+        total_expense = df.loc[df["income_or_expenditure"] == "Expenditure", "amount"].sum()
+    
+    # Total income includes monthly allowance + transaction income
+    total_income = monthly_allowance + transaction_income
+    # Savings = total income (allowance + transactions) - expenses
+    current_savings = float(total_income - total_expense)
+    
+    # Show current savings status
+    st.markdown("### Current Savings Status")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Current Month Savings", f"{current_savings:,.2f}")
+    with col2:
+        monthly_allowance = data.get("monthly_allowance", 0.0)
+        if monthly_allowance > 0:
+            savings_rate = (current_savings / monthly_allowance * 100) if monthly_allowance > 0 else 0.0
+            st.metric("Savings Rate (of Allowance)", f"{savings_rate:.1f}%")
+        else:
+            st.info("Set your monthly allowance in Dashboard to see savings rate.")
+    
+    # --- Manage Savings Goals ---
+    st.markdown("### Manage Your Savings Goals")
+    
+    savings_goals = data.get("savings_goals", [])
+    
+    # Create new goal form
+    with st.expander("➕ Create New Savings Goal", expanded=False):
+        with st.form("new_goal_form", clear_on_submit=True):
+            goal_name = st.text_input("Goal Name", placeholder="e.g., Emergency Fund, New Laptop, Trip")
+            target_amount = st.number_input("Target Amount", min_value=0.0, step=100.0, format="%.2f")
+            # Get today's date
+            today = date.today()
+
+            # Calculate the last day of the current month
+            last_day = calendar.monthrange(today.year, today.month)[1]
+            max_date = date(today.year, today.month, last_day)
+
+            # The updated input line
+            target_date = st.date_input(
+                "Target Date", 
+                value=today, 
+                min_value=today, 
+                max_value=max_date,
+                help="Goals must be completed within the current month."
+            )
+            
+            submitted = st.form_submit_button("Create Goal")
+            if submitted:
+                if not goal_name.strip():
+                    st.warning("Please enter a goal name.")
+                elif target_amount <= 0:
+                    st.warning("Please enter a target amount greater than zero.")
+                elif target_date is None:
+                    st.warning("Please select a target date.")
+                else:
+                    # Generate unique ID for the goal
+                    new_id = str(len(savings_goals) + 1) + "-" + str(int(datetime.now().timestamp()))
+                    new_goal = {
+                        "id": new_id,
+                        "name": goal_name.strip(),
+                        "target_amount": float(target_amount),
+                        "target_date": target_date.isoformat(),
+                        "created_date": date.today().isoformat(),
+                    }
+                    savings_goals.append(new_goal)
+                    data["savings_goals"] = savings_goals
+                    save_data(data)
+                    st.success(f"Goal '{goal_name}' created. You're taking a positive step forward!")
+                    st.rerun()
+    
+    # Display existing goals
+    st.markdown("### Your Savings Goals")
+    
+    if not savings_goals:
+        st.info(
+            "No savings goals set yet. Create your first goal above to start tracking your progress. "
+            "Even small goals help build healthy financial habits."
+        )
+    else:
+        # Calculate progress for each goal, but only for the current month. In a real app, you might want to track cumulative savings across months.
+        today = date.today()
+        
+        for idx, goal in enumerate(savings_goals):
+            goal_id = goal.get("id", str(idx))
+            goal_name = goal.get("name", "Unnamed Goal")
+            target_amount = goal.get("target_amount", 0.0)
+            target_date_str = goal.get("target_date", "")
+            created_date_str = goal.get("created_date", date.today().isoformat())
+            
+            try:
+                target_date_obj = datetime.fromisoformat(target_date_str).date()
+            except (ValueError, TypeError):
+                target_date_obj = None
+            
+            # Calculate progress (simplified: use current month savings as progress)
+            # In a real app, you might want cumulative savings across months
+            progress_amount = max(current_savings, 0.0)  # Don't show negative progress
+            progress_percentage = min((progress_amount / target_amount * 100) if target_amount > 0 else 0.0, 100.0)
+            remaining = max(target_amount - progress_amount, 0.0)
+            
+            # Calculate days remaining if target date exists
+            days_remaining = None
+            if target_date_obj:
+                days_remaining = (target_date_obj - today).days
+            
+            # Create a card-like display for each goal
+            with st.container():
+                st.markdown(f"#### {goal_name}")
+                
+                col1, col2, col3 = st.columns([2, 1, 1])
+                with col1:
+                    # Progress bar
+                    st.progress(progress_percentage / 100.0)
+                    st.caption(f"Progress: {progress_percentage:.1f}% ({progress_amount:,.2f} / {target_amount:,.2f})")
+                
+                with col2:
+                    st.metric("Target", f"{target_amount:,.2f}")
+                    if days_remaining is not None:
+                        if days_remaining >= 0:
+                            st.caption(f"{days_remaining} days remaining")
+                        else:
+                            st.caption("Target date passed")
+                
+                with col3:
+                    st.metric("Remaining", f"{remaining:,.2f}")
+                    if days_remaining is not None and days_remaining > 0:
+                        # Calculate suggested daily savings
+                        suggested_daily = remaining / days_remaining if days_remaining > 0 else 0.0
+                        st.caption(f"~{suggested_daily:,.2f}/day to reach goal")
+                
+                # Goal actions
+                col_del, col_edit = st.columns([1, 1])
+                with col_del:
+                    if st.button(f"Delete Goal", key=f"delete_{goal_id}"):
+                        data["savings_goals"] = [g for g in savings_goals if g.get("id") != goal_id]
+                        save_data(data)
+                        st.success(f"Goal '{goal_name}' deleted.")
+                        st.rerun()
+                
+                st.divider()
+        
+        # Overall progress visualization
+        st.markdown("### Overall Progress Visualization")
+        if len(savings_goals) > 0:
+            goal_names = [g.get("name", "Unnamed") for g in savings_goals]
+            target_amounts = [g.get("target_amount", 0.0) for g in savings_goals]
+            progress_amounts = [min(current_savings, target) for target in target_amounts]
+            
+            fig, ax = plt.subplots(figsize=(10, 6))
+            x_pos = range(len(goal_names))
+            width = 0.35
+            
+            bars1 = ax.bar([x - width/2 for x in x_pos], target_amounts, width, label="Target", color="#4c72b0", alpha=0.7)
+            bars2 = ax.bar([x + width/2 for x in x_pos], progress_amounts, width, label="Progress", color="#55a868", alpha=0.7)
+            
+            ax.set_xlabel("Goals")
+            ax.set_ylabel("Amount")
+            ax.set_title("Savings Goals Progress")
+            ax.set_xticks(x_pos)
+            ax.set_xticklabels(goal_names, rotation=45, ha="right")
+            ax.legend()
+            
+            plt.tight_layout()
+            st.pyplot(fig)
+    
+    st.info(
+        "💡 **Tip**: Track your savings regularly and adjust goals as needed. "
+        "Remember, building savings is a journey, not a race. Every step counts."
+        
+    )
+
+
+
+
+
+
+
+
+
+
+
+
 def main():
     
     
@@ -661,7 +863,7 @@ def main():
     elif page == "Insights":
         render_insights(data)
     elif page == "Savings":
-        pass
+        render_savings(data)
     elif page == "CSV Analysis":
         pass
     elif page == "Previous Months Data":
