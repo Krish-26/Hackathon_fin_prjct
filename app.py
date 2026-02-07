@@ -827,6 +827,130 @@ def render_savings(data: dict) -> None:
 
 
 
+def render_csv_analysis(data: dict) -> None:
+  
+    #This does NOT persist data; it only analyzes the uploaded file.
+
+    st.subheader("CSV Analysis – Learn from Past Data")
+    st.write(
+        "Upload a CSV file with your past transactions to explore patterns.\n\n"
+        "**Expected columns (case-sensitive):** `date`, `category`, `income_or_expenditure`, `payment_mode`, `amount`.\n"
+        "Dates should be in a format that pandas can understand (e.g., YYYY-MM-DD)."
+    )
+
+    uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
+    if uploaded_file is None:
+        st.info("No file uploaded yet. Choose a file to see insights.")
+        return
+
+    try:
+        df = pd.read_csv(uploaded_file)
+    except Exception:
+        st.warning("Unable to read this file as CSV. Please check the format.")
+        return
+
+    # Ensure required columns
+    required_cols = {"date", "category", "income_or_expenditure", "payment_mode", "amount"}
+    if not required_cols.issubset(df.columns):
+        st.warning(
+            "The CSV is missing one or more required columns. "
+            "Please ensure it includes: date, category, income_or_expenditure, payment_mode, amount."
+        )
+        st.write("Detected columns:", list(df.columns))
+        return
+
+    # Normalize dtypes
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df["amount"] = pd.to_numeric(df["amount"], errors="coerce").fillna(0.0)
+
+    st.markdown("### Raw Data Preview")
+    st.dataframe(df.head(50), use_container_width=True)
+
+    # Basic analytics
+    total_spending = df.loc[df["income_or_expenditure"] == "Expenditure", "amount"].sum()
+    total_income = df.loc[df["income_or_expenditure"] == "Income", "amount"].sum()
+
+    if df["date"].notna().any():
+        min_date = df["date"].min().date()
+        max_date = df["date"].max().date()
+        days_range = max((max_date - min_date).days + 1, 1)
+        avg_daily_spent = total_spending / days_range
+    else:
+        min_date = max_date = None
+        days_range = 0
+        avg_daily_spent = 0.0
+
+    st.markdown("### Summary from CSV")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Total Spending (Expenses)", f"{total_spending:,.2f}")
+    with c2:
+        st.metric("Total Income", f"{total_income:,.2f}")
+    with c3:
+        st.metric("Average Daily Spending (Over File Range)", f"{avg_daily_spent:,.2f}")
+
+    if min_date and max_date:
+        st.write(f"Date range in file: **{min_date}** to **{max_date}**.")
+
+    # Visuals similar to Insights
+    st.markdown("### Visuals from CSV")
+    col1, col2 = st.columns(2)
+
+    # Category-wise pie (expenses)
+    with col1:
+        st.write("Category-wise Spending (Expenses)")
+        df_exp = df[df["income_or_expenditure"] == "Expenditure"]
+        if df_exp.empty:
+            st.info("No expenditure entries detected in this file.")
+        else:
+            category_sums = df_exp.groupby("category")["amount"].sum().sort_values(ascending=False)
+            fig, ax = plt.subplots()
+            colors = plt.cm.Pastel1.colors
+            ax.pie(
+                category_sums.values,
+                labels=category_sums.index,
+                autopct="%1.1f%%",
+                startangle=90,
+                colors=colors,
+            )
+            ax.axis("equal")
+            st.pyplot(fig)
+
+    # Daily spending trend
+    with col2:
+        st.write("Daily Spending Trend (Expenses)")
+        df_exp = df[df["income_or_expenditure"] == "Expenditure"]
+        if df_exp.empty:
+            st.info("No expenditure entries detected in this file.")
+        else:
+            daily = df_exp.groupby("date")["amount"].sum().reset_index()
+            daily = daily.sort_values("date")
+            fig, ax = plt.subplots()
+            ax.plot(daily["date"], daily["amount"], marker="o", color="#4c72b0")
+            ax.set_xlabel("Date")
+            ax.set_ylabel("Amount")
+            ax.set_title("Daily Expenditure (CSV)")
+            plt.xticks(rotation=45)
+            st.pyplot(fig)
+
+    # Income vs Expenditure comparison
+    st.write("Income vs Expenditure (CSV)")
+    fig, ax = plt.subplots()
+    labels = ["Income", "Expenditure"]
+    values = [total_income, total_spending]
+    colors = ["#55a868", "#4c72b0"]
+    ax.bar(labels, values, color=colors)
+    ax.set_ylabel("Amount")
+    st.pyplot(fig)
+
+
+
+
+
+
+
+
+
 
 
 
@@ -865,7 +989,7 @@ def main():
     elif page == "Savings":
         render_savings(data)
     elif page == "CSV Analysis":
-        pass
+        render_csv_analysis(data)
     elif page == "Previous Months Data":
         pass
     elif page == "To Take & To Give":
@@ -873,4 +997,5 @@ def main():
     elif page == "About":
         pass
 
-main()
+if __name__ == "__main__":
+    main()
