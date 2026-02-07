@@ -1241,6 +1241,42 @@ def render_to_take_to_give(data: dict) -> None:
 
 
 
+def render_about() -> None:
+    """
+    Render the About tab.
+
+    This section is intentionally simple and clearly commented so it can be
+    edited quickly during a hackathon. Modify the text below to suit your use case.
+    """
+    st.subheader("About This App")
+
+    st.markdown(
+        """
+        This student-focused allowance tracker is designed to be:
+
+        - **Simple**: One clean dashboard with clear numbers.
+        - **Supportive**: No guilt, no judgment, just information.
+        - **Persistent**: Your data lives in a local JSON file,
+          so it survives browser refreshes and app restarts.
+
+        ### How it works
+
+        - Log your **income** and **expenses** on the Dashboard.
+        - Adjust your **monthly allowance** as your situation changes.
+        - Use **Insights** to understand your average daily spending,
+          safe daily limit, and category patterns.
+        - Experiment with **CSV Analysis** using past exports from any tool.
+        - Revisit **Previous Months Data** to see gentle summaries over time.
+
+        The goal is to keep you within a **comfortable, safe spending range**
+        while reducing surprise and stress around money.
+        """
+    )
+
+
+
+
+
 
 def main():
     
@@ -1283,7 +1319,7 @@ def main():
     elif page == "To Take & To Give":
         render_to_take_to_give(data)
     elif page == "About":
-        pass
+        render_about()
 
 if __name__ == "__main__":
     main()
