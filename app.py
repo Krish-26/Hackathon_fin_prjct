@@ -137,6 +137,132 @@ def transactions_to_dataframe(transactions: list) -> pd.DataFrame:
     return df
 
 
+def get_days_in_current_month() -> int:
+    today = date.today()
+    return calendar.monthrange(today.year, today.month)[1]
+
+
+def compute_insight_metrics(metrics: dict) -> dict:
+    """
+   metrics for Insights page:
+    - average daily spending so far
+    - remaining days
+    - safe daily spending limit
+    """
+    today = date.today()
+    days_in_month = get_days_in_current_month()
+    days_passed = today.day  # Up to and including today
+    remaining_days = max(days_in_month - days_passed, 0)
+
+    total_expense = metrics["total_expense"]
+    remaining_budget = metrics["remaining_budget"]
+
+    avg_daily_spent = total_expense / days_passed if days_passed > 0 else 0.0
+    safe_daily_spend = remaining_budget / remaining_days if remaining_days > 0 else 0.0
+
+    return {
+        "avg_daily_spent": float(avg_daily_spent),
+        "remaining_days": int(remaining_days),
+        "safe_daily_spend": float(safe_daily_spend),
+    }
+
+
+
+
+
+#Financial tips system
+FINANCIAL_TIPS = [
+    "Note your expenses once a day to stay calmly aware.",
+    "Keep small, predictable snacks at home to avoid impulse buys outside.",
+    "Plan your week’s meals so food spending feels intentional.",
+    "Refill a water bottle instead of buying bottles on campus.",
+    "Use a simple spending limit for outings and stick to it comfortably.",
+    "Share subscriptions with trusted friends where allowed to reduce cost.",
+    "Schedule a weekly ‘money check-in’ that takes just 5–10 minutes.",
+    "Walk or cycle for short distances when it feels safe and practical.",
+    "Use a shopping list so you only buy what you had in mind.",
+    "Keep one low-cost comfort activity ready for stressful days.",
+    "Borrow books from the library before buying new ones.",
+    "Cook in bulk with friends and share ingredients to save gently.",
+    "Track how often you order food; small changes can add up calmly.",
+    "Keep a small emergency cushion, even if it grows slowly.",
+    "If you overspend one day, you can gently rebalance over the week.",
+    "Look for student discounts before paying full price.",
+    "Bring homemade tea or coffee when possible to reduce café trips.",
+    "Compare prices online before buying electronics or textbooks.",
+    "Set a simple monthly savings goal, even if the amount is small.",
+    "Write down your top three spending priorities for this month.",
+    "Plan social outings that don’t always revolve around spending.",
+    "Buy second-hand when it feels comfortable for you.",
+    "Use cash for some categories if it helps you feel more in control.",
+    "Pause for a few seconds before each unplanned purchase.",
+    "Unsubscribe from marketing emails that tempt you to buy more.",
+    "Set gentle limits for late-night online shopping.",
+    "Review your recurring subscriptions once a month.",
+    "Use a shared ride instead of solo cabs when it feels safe.",
+    "Try a ‘no-spend’ day occasionally to reset your habits.",
+    "Keep snacks in your bag to avoid expensive last-minute buys.",
+    "Plan ahead for exam periods when delivery spending might rise.",
+    "Split big purchases into planned, smaller monthly amounts.",
+    "Try making coffee at home most days and buying it occasionally.",
+    "Notice which days you tend to spend more, and plan ahead.",
+    "Set a calm limit for how often you use food delivery apps.",
+    "Use your allowance tracking as information, not as judgment.",
+    "Compare prices between nearby stores for everyday items.",
+    "Keep one payment method as your primary one to simplify tracking.",
+    "Add notes to your transactions so they make sense later.",
+    "Create a small ‘fun fund’ so enjoyment is part of your budget.",
+    "When you get extra income, decide its purpose before spending.",
+    "Try generic brands for a few items and see how you feel.",
+    "Keep a list of things you want and revisit it after a few days.",
+    "Celebrate small wins like sticking to your plan for a week.",
+    "If a plan doesn’t work, adjust it rather than abandoning it.",
+    "Use reminders to pay any dues on time and avoid late fees.",
+    "Talk openly with friends about low-cost hangout ideas.",
+    "Bundle small online orders to reduce delivery fees.",
+    "Prepare simple meals in advance for busy days.",
+    "Notice which purchases actually make you feel better long term.",
+    "Use campus resources (labs, gyms, libraries) wherever possible.",
+    "Take advantage of student offers on transport passes if available.",
+    "Write down upcoming events so you can plan their costs calmly.",
+    "Keep your most common categories visible to stay mindful.",
+    "Review last month’s spending for 5 minutes to spot easy tweaks.",
+    "Use your allowance tracker as a supportive tool, not a critic.",
+    "Choose one category to gently reduce this month, not all at once.",
+    "Make a simple meal plan before grocery shopping.",
+    "Avoid shopping when you’re very tired or stressed if possible.",
+    "Track cash withdrawals so you know where they are going.",
+    "Use campus printers or shared printers to save on printing costs.",
+    "Sell or donate items you don’t use and free up space and money.",
+    "When you get a gift or bonus, consider saving a small part of it.",
+    "Choose one day a week to quickly log all pending transactions.",
+    "Staying curious about your habits is more helpful than being harsh.",
+    "Ask seniors how they managed their allowance for practical ideas.",
+    "Keep big financial goals visible but flexible.",
+    "Reflect on one purchase each week that felt really worth it.",
+    "Reflect on one purchase each week that you might skip next time.",
+    "Use a simple color scheme and calm visuals for your money tools.",
+    "Give yourself permission to enjoy your allowance mindfully.",
+    "Remember that small, steady changes often beat strict rules.",
+    "Revisit your budget if your routine or semester changes.",
+    "Use this tracker to reduce surprise, not to create pressure.",
+    "Notice which subscriptions you actually use regularly.",
+    "Group similar expenses together to see clear patterns.",
+    "Set a friendly reminder near your study space to check your budget.",
+    "Track how often you take cabs versus public transport.",
+    "Plan ahead for festivals and celebrations in your budget.",
+    "Aim for progress in your financial habits, not perfection.",
+    "If you miss tracking for a few days, you can always restart calmly.",
+    "Use digital wallets mindfully; small taps can add up quietly.",
+    "Recheck your allowance amount each semester to see if it still fits.",
+    "Keep your financial notes simple enough that you enjoy using them.",
+]
+
+
+def get_random_tips(n: int = 3) -> list:
+    n = min(n, len(FINANCIAL_TIPS))
+    return random.sample(FINANCIAL_TIPS, n)
+
 
 
 
@@ -387,6 +513,121 @@ def render_dashboard(data: dict) -> None:
 
 
 
+
+
+
+
+
+def render_insights(data: dict) -> None:
+    """Render the Insights tab with analytics, charts, and financial tips."""
+    st.subheader("Insights – Gentle View of Your Habits")
+
+    df = transactions_to_dataframe(data.get("transactions", []))
+    basic_metrics = compute_basic_metrics(df, data.get("monthly_allowance", 0.0))
+    insight_metrics = compute_insight_metrics(basic_metrics)
+
+    # --- Spending intelligence section ---
+    st.markdown("### Spending Intelligence")
+    i1, i2, i3 = st.columns(3)
+    with i1:
+        st.metric(
+            "Average Daily Spending So Far",
+            f"{insight_metrics['avg_daily_spent']:,.2f}",
+        )
+    with i2:
+        st.metric(
+            "Remaining Days in Month",
+            f"{insight_metrics['remaining_days']}",
+        )
+    with i3:
+        st.metric(
+            "Safe Daily Spending Limit (Approx.)",
+            f"{insight_metrics['safe_daily_spend']:,.2f}",
+        )
+
+    st.write(
+        "These numbers are estimates to gently guide you. "
+        "You can adjust plans at any time to keep things comfortable."
+    )
+
+    # --- Visuals section ---
+    st.markdown("### Visual Overview")
+    if df.empty:
+        st.info("Once you log some transactions, charts will appear here to support your decisions.")
+    else:
+        col1, col2 = st.columns(2)
+
+        # Category-wise pie chart (expenses only)
+        with col1:
+            st.write("Category-wise Spending (Expenses)")
+            df_exp = df[df["income_or_expenditure"] == "Expenditure"]
+            if df_exp.empty:
+                st.info("No expenditure entries yet for this month.")
+            else:
+                category_sums = df_exp.groupby("category")["amount"].sum().sort_values(ascending=False)
+                fig, ax = plt.subplots()
+                # Use calm, non-red colors
+                colors = plt.cm.Pastel2.colors
+                ax.pie(
+                    category_sums.values,
+                    labels=category_sums.index,
+                    autopct="%1.1f%%",
+                    startangle=90,
+                    colors=colors,
+                )
+                ax.axis("equal")
+                st.pyplot(fig)
+
+        # Daily spending trend (expenses only)
+        with col2:
+            st.write("Daily Spending Trend (Expenses)")
+            df_exp = df[df["income_or_expenditure"] == "Expenditure"]
+            if df_exp.empty:
+                st.info("No expenditure entries yet for this month.")
+            else:
+                daily = df_exp.groupby("date")["amount"].sum().reset_index()
+                daily = daily.sort_values("date")
+                fig, ax = plt.subplots()
+                ax.plot(daily["date"], daily["amount"], marker="o", color="#4c72b0")
+                ax.set_xlabel("Date")
+                ax.set_ylabel("Amount")
+                ax.set_title("Daily Expenditure")
+                plt.xticks(rotation=45)
+                st.pyplot(fig)
+
+        # Income vs Expenditure comparison
+        st.write("Income vs Expenditure This Month")
+        total_income = basic_metrics["total_income"]
+        total_expense = basic_metrics["total_expense"]
+        fig, ax = plt.subplots()
+        labels = ["Income", "Expenditure"]
+        values = [total_income, total_expense]
+        colors = ["#55a868", "#4c72b0"]  # Calm green and blue
+        ax.bar(labels, values, color=colors)
+        ax.set_ylabel("Amount")
+        st.pyplot(fig)
+
+    # --- Financial tips section ---
+    st.markdown("### Gentle Financial Tips for Students")
+    st.write(
+        "Here are a few calm, practical thoughts for this session. "
+        "They change with each refresh so you always see something new."
+    )
+    for tip in get_random_tips(3):
+        st.markdown(f"- {tip}")
+
+    st.info(
+        "You’re currently using your allowance tracker in a healthy way. "
+        "Simply noticing your patterns regularly keeps you in a safe spending range."
+    )
+
+
+
+
+
+
+
+
 def main():
     
     
@@ -418,7 +659,7 @@ def main():
     if page == "Dashboard":
         render_dashboard(data)
     elif page == "Insights":
-        pass
+        render_insights(data)
     elif page == "Savings":
         pass
     elif page == "CSV Analysis":
